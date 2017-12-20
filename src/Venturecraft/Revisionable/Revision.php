@@ -3,7 +3,6 @@
 namespace Venturecraft\Revisionable;
 
 use Illuminate\Database\Eloquent\Model as Eloquent;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Revision.
@@ -13,23 +12,21 @@ use Illuminate\Support\Facades\Log;
  *
  * (c) Venture Craft <http://www.venturecraft.com.au>
  */
-class Revision extends Eloquent
-{
+class Revision extends Eloquent {
+
     /**
      * @var string
      */
     public $table = 'revisions';
-
     /**
      * @var array
      */
-    protected $revisionFormattedFields = array();
+    protected $revisionFormattedFields = [];
 
     /**
      * @param array $attributes
      */
-    public function __construct(array $attributes = array())
-    {
+    public function __construct (array $attributes = []) {
         parent::__construct($attributes);
     }
 
@@ -40,8 +37,7 @@ class Revision extends Eloquent
      *
      * @return array revision history
      */
-    public function revisionable()
-    {
+    public function revisionable () {
         return $this->morphTo();
     }
 
@@ -53,11 +49,10 @@ class Revision extends Eloquent
      *
      * @return string field
      */
-    public function fieldName()
-    {
+    public function fieldName () {
         if ($formatted = $this->formatFieldName($this->key)) {
             return $formatted;
-        } elseif (strpos($this->key, '_id')) {
+        } else if (strpos($this->key, '_id')) {
             return str_replace('_id', '', $this->key);
         } else {
             return $this->key;
@@ -73,10 +68,9 @@ class Revision extends Eloquent
      *
      * @return bool
      */
-    private function formatFieldName($key)
-    {
+    private function formatFieldName ($key) {
         $related_model = $this->revisionable_type;
-        $related_model = new $related_model;
+        $related_model = new $related_model();
         $revisionFormattedFieldNames = $related_model->getRevisionFormattedFieldNames();
 
         if (isset($revisionFormattedFieldNames[$key])) {
@@ -94,11 +88,9 @@ class Revision extends Eloquent
      *
      * @return string old value
      */
-    public function oldValue()
-    {
+    public function oldValue () {
         return $this->getValue('old');
     }
-
 
     /**
      * New Value.
@@ -108,11 +100,9 @@ class Revision extends Eloquent
      *
      * @return string old value
      */
-    public function newValue()
-    {
+    public function newValue () {
         return $this->getValue('new');
     }
-
 
     /**
      * Responsible for actually doing the grunt work for getting the
@@ -122,15 +112,14 @@ class Revision extends Eloquent
      *
      * @return string value
      */
-    private function getValue($which = 'new')
-    {
+    private function getValue ($which = 'new') {
         $which_value = $which . '_value';
 
         // First find the main model that was updated
         $main_model = $this->revisionable_type;
         // Load it, WITH the related model
         if (class_exists($main_model)) {
-            $main_model = new $main_model;
+            $main_model = new $main_model();
 
             try {
                 if ($this->isRelated()) {
@@ -150,18 +139,18 @@ class Revision extends Eloquent
                     $item = $related_class::find($this->$which_value);
 
                     if (is_null($this->$which_value) || $this->$which_value == '') {
-                        $item = new $related_class;
+                        $item = new $related_class();
 
                         return $item->getRevisionNullString();
                     }
                     if (!$item) {
-                        $item = new $related_class;
+                        $item = new $related_class();
 
                         return $this->format($this->key, $item->getRevisionUnknownString());
                     }
 
                     // Check if model use RevisionableTrait
-                    if(method_exists($item, 'identifiableName')) {
+                    if (method_exists($item, 'identifiableName')) {
                         // see if there's an available mutator
                         $mutator = 'get' . studly_case($this->key) . 'Attribute';
                         if (method_exists($item, $mutator)) {
@@ -193,8 +182,7 @@ class Revision extends Eloquent
      *
      * @return bool
      */
-    private function isRelated()
-    {
+    private function isRelated () {
         $isRelated = false;
         $idSuffix = '_id';
         $pos = strrpos($this->key, $idSuffix);
@@ -213,8 +201,7 @@ class Revision extends Eloquent
      *
      * @return string
      */
-    private function getRelatedModel()
-    {
+    private function getRelatedModel () {
         $idSuffix = '_id';
 
         return substr($this->key, 0, strlen($this->key) - strlen($idSuffix));
@@ -225,9 +212,10 @@ class Revision extends Eloquent
      *
      * @return User user responsible for the change
      */
-    public function userResponsible()
-    {
-        if (empty($this->user_id)) { return false; }
+    public function userResponsible () {
+        if (empty($this->user_id)) {
+            return false;
+        }
         if (class_exists($class = '\Cartalyst\Sentry\Facades\Laravel\Sentry')
             || class_exists($class = '\Cartalyst\Sentinel\Laravel\Facades\Sentinel')
         ) {
@@ -244,6 +232,7 @@ class Revision extends Eloquent
             if (!class_exists($user_model)) {
                 return false;
             }
+
             return $user_model::find($this->user_id);
         }
     }
@@ -253,8 +242,7 @@ class Revision extends Eloquent
      *
      * @return Object|false
      */
-    public function historyOf()
-    {
+    public function historyOf () {
         if (class_exists($class = $this->revisionable_type)) {
             return $class::find($this->revisionable_id);
         }
@@ -264,10 +252,10 @@ class Revision extends Eloquent
 
     /*
      * Examples:
-    array(
-        'public' => 'boolean:Yes|No',
-        'minimum'  => 'string:Min: %s'
-    )
+     * array(
+     *     'public' => 'boolean:Yes|No',
+     *     'minimum'  => 'string:Min: %s'
+     * )
      */
     /**
      * Format the value according to the $revisionFormattedFields array.
@@ -277,10 +265,9 @@ class Revision extends Eloquent
      *
      * @return string formatted value
      */
-    public function format($key, $value)
-    {
+    public function format ($key, $value) {
         $related_model = $this->revisionable_type;
-        $related_model = new $related_model;
+        $related_model = new $related_model();
         $revisionFormattedFields = $related_model->getRevisionFormattedFields();
 
         if (isset($revisionFormattedFields[$key])) {
